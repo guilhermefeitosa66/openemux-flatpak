@@ -36,12 +36,15 @@ jobs:
 
       - name: Prepare gh-pages worktree
         run: |
+          mkdir -p site
           if [ ! -d site/.git ]; then
-            mkdir -p site
-            git -C site init -b gh-pages
+            git -C site init
             git -C site remote add origin \
               "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           fi
+          # Whatever state the checkout left (missing branch on the first
+          # run falls back oddly), the local branch must be gh-pages.
+          git -C site checkout -B gh-pages
 
       - name: Install flatpak-builder
         run: |
