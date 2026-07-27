@@ -45,6 +45,17 @@ jobs:
           # Whatever state the checkout left (missing branch on the first
           # run falls back oddly), the local branch must be gh-pages.
           git -C site checkout -B gh-pages
+          # git does not track empty directories, so an ostree repo restored
+          # from a checkout comes back missing the ones that happen to be
+          # empty -- and build-update-repo dies on the first of them
+          # ("Listing refs: opendir(refs/remotes)"). Recreate them; the .keep
+          # files make them survive the next round trip.
+          if [ -d site/repo ]; then
+            for dir in refs/heads refs/mirrors refs/remotes objects tmp state; do
+              mkdir -p "site/repo/$dir"
+              touch "site/repo/$dir/.keep"
+            done
+          fi
 
       - name: Install flatpak-builder
         run: |
