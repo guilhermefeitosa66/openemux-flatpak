@@ -17,7 +17,24 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    name: ${{ matrix.arch }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      # One ostree repo, on one gh-pages branch, and both legs push to it.
+      # Serialising them is what makes that safe without any merging
+      # machinery: the second leg checks out gh-pages *after* the first has
+      # pushed, so it builds on top rather than racing (OpenEmux issue #119).
+      max-parallel: 1
+      # A broken ARM build must not withdraw the x86_64 one that already
+      # published, and vice versa.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runs-on: ubuntu-latest
+          - arch: aarch64
+            # Free for public repositories, which this is.
+            runs-on: ubuntu-24.04-arm
     steps:
       - name: Check out the app at the requested ref
         uses: actions/checkout@v4
@@ -80,6 +97,10 @@ jobs:
             openemux/src/openemux/core/embedded_credentials.py
 
       - name: Build into the published ostree repo
+        # flatpak-builder builds for the machine it runs on and commits under
+        # that architecture's ref, so one repo ends up serving both and
+        # `flatpak update` on an ARM machine finds its build behind the remote
+        # the user already has.
         run: |
           flatpak-builder --user --force-clean --disable-rofiles-fuse \
             --repo=site/repo build-dir \
@@ -114,5 +135,5 @@ jobs:
             echo "no changes"
             exit 0
           fi
-          git commit -m "publish: OpenEmux @ ${{ inputs.ref }}"
+          git commit -m "publish: OpenEmux ${{ matrix.arch }} @ ${{ inputs.ref }}"
           git push origin gh-pages
