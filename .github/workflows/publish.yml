@@ -107,6 +107,19 @@ jobs:
             openemux/packaging/flatpak/io.github.guilhermefeitosa66.OpenEmux.yaml
           flatpak build-update-repo --generate-static-deltas site/repo
 
+      - name: Give every commit a detached-metadata file
+        # Every pull asks for objects/<commit>.commitmeta, and ostree reads a
+        # 404 there as "unsigned, carry on". GitHub Pages now and then answers
+        # a missing file with a 503 instead of a 404, which ostree does not
+        # retry, so installs and updates died at ~2% with "Server returned
+        # HTTP 503". An empty file is a valid empty a{sv}: with it in place
+        # the request never misses. A real (signed) .commitmeta is left alone.
+        run: |
+          find site/repo/objects -name '*.commit' | while read -r commit; do
+            meta="${commit%.commit}.commitmeta"
+            [ -e "$meta" ] || : > "$meta"
+          done
+
       - name: Write the flatpakrepo file and index
         run: |
           cat > site/openemux.flatpakrepo <<'EOF'
